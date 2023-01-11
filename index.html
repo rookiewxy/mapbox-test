@@ -1,0 +1,234 @@
+<!--
+ * @Author: wxy
+ * @Description: 
+ * @Date: 2023-01-09 23:36:13
+ * @LastEditTime: 2023-01-11 13:38:46
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Add markers to a web map with a symbol layer</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link href="mapbox-gl.css" rel="stylesheet" />
+    <script src="mapbox-gl.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script type="module">
+      import stline from "./stline.js";
+      import stpolygon from "./stpolygon.js";
+
+      mapboxgl.accessToken =
+        "pk.eyJ1Ijoic2hhbmxpZ2FuZyIsImEiOiJja2d1d3Jhb3oxc3JmMnpsOG5scHJreDJuIn0.T9z-xIqJxYFsBNa5Qg4TFw";
+      const map = new mapboxgl.Map({
+        container: "map",
+        zoom: 9, // 地图初始的缩放层级
+        minzoom: 1, // 地图的最小缩放层级
+        maxzoom: 20, // 地图的最大缩放层级
+        rotation: 0,
+        center: [119.89, 30.72], // 初始坐标系
+        maxBounds: [
+          [100, 20],
+          [150, 40],
+        ], // 最大显示范围
+        hash: false,
+        antialias: false, // 抗锯齿，通过false关闭提升性能
+        pitch: 0, // 地图的角度，不写默认是0，取值是0-60度，一般在3D中使用
+        bearing: 0, // 地图的初始方向，值是北的逆时针度数，默认是0，即是正北
+        style: {
+          version: 8,
+          id: "x14sv9tch",
+          metadata: {},
+          glyphs: `http://localhost:5500/{fontstack}/{range}.pbf`, // dev
+          light: {
+            anchor: "viewport",
+            color: "white",
+            intensity: 0.5,
+          },
+          sources: {
+            zjimage: {
+              type: "raster",
+              tileSize: 256,
+              tiles: [
+                "https://ditu.zjzwfw.gov.cn:443/services/wmts/imgmap/default/oss?service=WMTS&request=GetTile&version=1.0.0&layer=imgmap&style=default&tilematrixSet=esritilematirx&format=image%2Fjpgpng&height=256&width=256&tileSize=256&fullExtent=%5Bobject%20Object%5D&tilematrix={z}&tilerow={y}&tilecol={x}&token=b6bbd7b5-c542-4e14-9440-9a13cca5c54a",
+              ],
+            },
+            zjimageAn: {
+              type: "raster",
+              tileSize: 256,
+              tiles: [
+                "https://ditu.zjzwfw.gov.cn:443/services/wmts/imgmap_lab/default/oss?service=WMTS&request=GetTile&version=1.0.0&layer=imgmap_lab&style=default&tilematrixSet=esritilematirx&format=image%2Fjpgpng&height=256&width=256&tileSize=256&fullExtent=%5Bobject%20Object%5D&tilematrix={z}&tilerow={y}&tilecol={x}&token=b6bbd7b5-c542-4e14-9440-9a13cca5c54a",
+              ],
+            },
+          },
+          layers: [
+            {
+              id: "zjimage",
+              type: "raster",
+              source: "zjimage",
+              layout: {
+                visibility: "visible",
+              },
+              paint: {},
+              minzoom: 0,
+              maxzoom: 24,
+            },
+            {
+              id: "zjimageAn",
+              type: "raster",
+              source: "zjimageAn",
+              layout: {
+                visibility: "visible",
+              },
+              paint: {},
+              minzoom: 0,
+              maxzoom: 24,
+            },
+          ],
+        },
+      });
+
+      map.on("load", () => {
+        // Add an image to use as a custom marker
+        map.loadImage(require("./assets/icon-circle.png"), (error, image) => {
+          if (error) throw error;
+          map.addImage("custom-marker", image);
+          // Add a GeoJSON source with 2 points
+          map.addSource("points", {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  // feature for Mapbox DC
+                  type: "Feature",
+                  geometry: {
+                    type: "Point",
+                    coordinates: [120, 30.913188059745586],
+                  },
+                  properties: {
+                    title: "Mapbox DC",
+                  },
+                },
+                {
+                  // feature for Mapbox SF
+                  type: "Feature",
+                  geometry: {
+                    type: "Point",
+                    coordinates: [120, 31],
+                  },
+                  properties: {
+                    title: "Mapbox SF",
+                  },
+                },
+              ],
+            },
+          });
+
+          // Add a symbol layer
+          map.addLayer({
+            id: "points",
+            type: "symbol",
+            source: "points",
+            layout: {
+              "icon-image": "custom-marker",
+              // get the title name from the source's "title" property
+              "text-field": ["get", "title"],
+              "text-font": ["Open Sans Semibold"],
+              "text-offset": [0, 1.25],
+              "text-anchor": "top",
+            },
+          });
+        });
+
+        // 线
+        loadLayer("stline", stline, {
+          lineborder: "#c4a631",
+        });
+        // 面
+        loadLayer("stpolygon", stpolygon, {
+          lineborder: "#01b2fc",
+          fillcolor: "rgba(1, 96, 252, 0.7)",
+        });
+      });
+      map.on("click", "stpolygon", (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ["stpolygon"],
+        });
+        if (features.length > 0) {
+          map.setFilter("stpolygonhighlight", [
+            "in",
+            "id",
+            features[0].properties.id,
+          ]);
+        }
+        console.log(features);
+      });
+      function loadLayer(layername, layerData, layerStyle) {
+        map.addSource(layername, {
+          type: "geojson",
+          data: layerData,
+        });
+        layerStyle.fillcolor &&
+          map.addLayer({
+            id: layername,
+            type: "fill",
+            source: layername,
+            minzoom: 10,
+            maxzoom: 18,
+            layout: {},
+            paint: {
+              "fill-color": layerStyle.fillcolor,
+              "fill-opacity": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                1,
+                0.5,
+              ],
+            },
+          });
+        map.addLayer({
+          id: layername + "highlight",
+          type: "fill",
+          source: layername,
+          minzoom: 10,
+          maxzoom: 18,
+          layout: {},
+          paint: {
+            "fill-color": "#6e599f",
+            "fill-opacity": 0.5,
+          },
+          filter: ["in", "id", ""],
+        });
+        map.addLayer({
+          id: "state-borders",
+          minzoom: 10,
+          maxzoom: 18,
+          type: "line",
+          source: layername,
+          layout: {},
+          paint: {
+            "line-color": layerStyle.lineborder,
+            "line-width": 4,
+          },
+        });
+      }
+    </script>
+  </body>
+</html>
